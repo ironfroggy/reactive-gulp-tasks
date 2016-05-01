@@ -27,11 +27,11 @@ module.exports = function(gulp, defaults) {
     .alias('f', 'full')
     .boolean('watch')
     .alias('w', 'watch')
-    .default('port', '8889')
-    .default('js-entry', 'app/main.jsx')
-    .default('css-entry', 'styles/**/*.less')
-    .default('dest', defaults.dest || 'build')
     .array('deps')
+    .default('port', defaults['port'] || '8889')
+    .default('js-entry', defaults['js-entry'] || 'app/main.jsx')
+    .default('css-entry', defaults['css-entry'] || 'styles/**/*.less')
+    .default('dest', defaults['dest'] || 'build')
     .default('deps', defaults.deps || [])
     .argv;
 
@@ -58,9 +58,11 @@ module.exports = function(gulp, defaults) {
       return new Promise(function(resolve) {
         appBundler.bundle()
           .on('error', gutil.log)
-          .pipe(source('main.jsx'))
-          .pipe(gulpif(!options.development, streamify(uglify())))
+          .pipe(source(path.basename(argv['js-entry'])))
           .pipe(rename('bundle.js'))
+          // .pipe(gulpif(!options.development, streamify(uglify().on('error', function(e){
+          //     console.error('uglify error:', e);
+          //  }))))
           .pipe(gulp.dest(options.dest))
           .pipe(gulpif(options.watch, livereload()))
           .pipe(notify(function () {
@@ -161,7 +163,7 @@ module.exports = function(gulp, defaults) {
           console.log('Building CSS bundle');
           promise = gulp.src(options.src)
             .pipe(gulpif(options.watch, livereload()))
-            .pipe(concat('main.less'))
+            .pipe(concat(path.basename(argv['css-entry'])))
             .pipe(less())
             .pipe(rename('main.css'))
             .pipe(gulp.dest(options.dest))
@@ -176,7 +178,7 @@ module.exports = function(gulp, defaults) {
         return promise;
       } else {
         return gulp.src(options.src)
-          .pipe(concat('main.less'))
+          .pipe(concat(path.basename(argv['css-entry'])))
           .pipe(less())
           .pipe(cssnano())
           .pipe(rename('main.css'))
@@ -235,9 +237,9 @@ module.exports = function(gulp, defaults) {
     Promise.all([js, css]).then(()=>{
       console.log('Uploading...')
       readJson('package.json', console.error, false, function(err, data) {
-        gulp.src(argv.dest + '/**')
+        gulp.src('dist/**')
           .pipe(rsync({
-            root: argv.dest,
+            root: 'dist',
             hostname: data.deploy.hostname,
             destination: data.deploy.destination,
             recursive: true,
